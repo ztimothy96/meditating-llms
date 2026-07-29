@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meditation"
+version = "0.1.0"
+description = "Does concentrative meditation reveal an LLM's attachments?"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "jlens",
+    "torch",
+    "transformers>=5.5",
+    "huggingface_hub",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+fit = ["datasets"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["meditation*"]
+
+[tool.uv.sources]
+jlens = { path = "src/jacobian-lens-main", editable = true }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "E741"]
