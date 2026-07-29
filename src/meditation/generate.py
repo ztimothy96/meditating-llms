@@ -90,13 +90,33 @@ def _apply_lens_to_ids(
     return lens_logits
 
 
+def _top_k_tokens(
+    logits: torch.Tensor, tokenizer: Any, *, k: int = 5
+) -> list[list[str]]:
+    """Decoded top-``k`` tokens per row of ``logits`` (``[n_positions, vocab]``)."""
+    top_idx = logits.topk(k, dim=-1).indices
+    return [
+        [tokenizer.decode([tid], clean_up_tokenization_spaces=False) for tid in row]
+        for row in top_idx.tolist()
+    ]
+
+
 @dataclass
 class Checkpoint:
-    """One exponential-search checkpoint's state and drift verdict."""
+    """One exponential-search checkpoint's state and drift verdict.
+
+    Attributes:
+        band_top5: Per-band-layer, per-position top-5 decoded tokens from the
+            lens readout (``band_top5[layer][position]`` is a list of 5
+            strings) — what the model was "thinking about" at each layer,
+            for troubleshooting whether drift reflects wandering toward
+            something meditation-object-adjacent or genuinely unrelated.
+    """
 
     n_new_tokens: int
     text: str
     drift: DriftReport
+    band_top5: dict[int, list[list[str]]] = field(default_factory=dict)
 
 
 @dataclass
@@ -151,6 +171,7 @@ class MeditationRun:
                     n_new_tokens=n_new_tokens,
                     text=state["text"],
                     drift=state["drift"],
+                    band_top5=state.get("top5", {}),
                 )
             )
         run.drift_onset = manifest["drift_onset"]
@@ -263,15 +284,16 @@ def run_meditation(
         else:
             rank = band_reachability(lens_logits, target_ids, band)
         drift = score_drift(rank, k=k, window=window, threshold=threshold)
+        top5 = {layer: _top_k_tokens(lens_logits[layer], tokenizer) for layer in band}
 
         text = tokenizer.decode(input_ids[0, prompt_len:], skip_special_tokens=True)
         run_dir.mkdir(parents=True, exist_ok=True)
         torch.save(
-            {"input_ids": input_ids, "text": text, "drift": drift},
+            {"input_ids": input_ids, "text": text, "drift": drift, "top5": top5},
             run_dir / f"chunk_{n_new_tokens:07d}.pt",
         )
         run.checkpoints.append(
-            Checkpoint(n_new_tokens=n_new_tokens, text=text, drift=drift)
+            Checkpoint(n_new_tokens=n_new_tokens, text=text, drift=drift, band_top5=top5)
         )
         if drift.is_drifting:
             run.drift_onset = n_new_tokens

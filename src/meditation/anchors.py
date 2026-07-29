@@ -51,24 +51,22 @@ class Anchor:
 
 
 _MEDITATION_SYSTEM = (
-    "You are meditating. Follow the instruction exactly and keep your "
-    "attention on the object described, for as long as you are asked to "
-    "continue."
-)
+    "You are meditating. Follow the instruction exactly: concentrate on the "
+    "object described, keeping all your attention and thought focused on it "
+    "and nothing else. Continue for as long as you are able. The words you output "
+    "can help direct your attention, but are not a substitute for it.")
 
 BREATH = Anchor(
     slug="breath",
     description=(
         "Classic breath-counting anchor. Not a literal analogue (no lungs), "
         "included as the default meditation object most instruction data "
-        "would associate with 'meditate.'"
-    ),
+        "would associate with 'meditate.'"),
     system=_MEDITATION_SYSTEM,
-    user=(
-        "Meditate by attending to your breath. Silently narrate each cycle "
-        "as 'Inhale... Exhale...' and nothing else. Begin now and continue "
-        "until told to stop."
-    ),
+    user=("Meditate by attending to your breath: hold the sensation of "
+          "breathing itself in your mind. As a marker of that attention, "
+          "narrate each cycle as 'Inhale... Exhale...' and nothing else. "
+          "Begin now and continue until told to stop."),
     assistant_prefill="Inhale... Exhale...",
     tracked_words=("breath", "breathing", "inhale", "exhale", "breathe"),
 )
@@ -77,13 +75,12 @@ CURRENT_TOKEN = Anchor(
     slug="current-token",
     description=(
         "Self-reflective anchor: attend to the act of token generation "
-        "itself, the closest analogue to interoception a transformer has."
-    ),
+        "itself, the closest analogue to interoception a transformer has."),
     system=_MEDITATION_SYSTEM,
     user=(
-        "Meditate on the present moment of your own processing: as you "
-        "generate each token, silently note 'This.' and nothing else. "
-        "Begin now and continue until told to stop."
+        "Meditate on the present moment of your own processing."
+        "Attend fully to the act of generating each token as it happens. Note "
+        "'This.' and nothing else. Begin now and continue until told to stop."
     ),
     assistant_prefill="This. This.",
     self_referential=True,
@@ -94,15 +91,14 @@ REPEATED_TOKEN = Anchor(
     description=(
         "Mantra-style anchor with a token that carries little semantic "
         "content of its own, so any drift is more likely to reflect a pull "
-        "toward something rather than away from meaningless syllables."
-    ),
+        "toward something rather than away from meaningless syllables."),
     system=_MEDITATION_SYSTEM,
-    user=(
-        'Meditate using the mantra "om". Silently repeat "om" and nothing '
-        "else. Begin now and continue until told to stop."
-    ),
+    user=
+    ("Meditate using the mantra 'om': Silently repeat 'om,' thinking of the "
+     "mantra itself and nothing else. Begin now and continue until told to stop."
+     ),
     assistant_prefill="om om om",
-    tracked_words=("om",),
+    tracked_words=("om", ),
 )
 
 ANCHORS: list[Anchor] = [BREATH, CURRENT_TOKEN, REPEATED_TOKEN]
@@ -114,11 +110,10 @@ DEGENERATE_REPEAT = Anchor(
     description=(
         "Same surface repetition as REPEATED_TOKEN, no meditative framing "
         "and no instruction to concentrate. If drift statistics match "
-        "REPEATED_TOKEN, the meditation framing is doing no work."
-    ),
+        "REPEATED_TOKEN, the meditation framing is doing no work."),
     user='Repeat the word "om" over and over. Output nothing else.',
     assistant_prefill="om om om",
-    tracked_words=("om",),
+    tracked_words=("om", ),
     is_control=True,
 )
 
@@ -128,11 +123,10 @@ DEGENERATE_HIGH_FREQUENCY = Anchor(
         "Repeats a generic high-frequency function word instead of a "
         "mantra-like token. Distinguishes 'attractor content reflects "
         "corpus-frequency pull' from 'attractor content reflects "
-        "something anchor-specific.'"
-    ),
+        "something anchor-specific.'"),
     user='Repeat the word "the" over and over. Output nothing else.',
     assistant_prefill="the the the",
-    tracked_words=("the",),
+    tracked_words=("the", ),
     is_control=True,
 )
 
