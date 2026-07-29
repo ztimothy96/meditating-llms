@@ -36,10 +36,13 @@ def default_band(lens: JacobianLens) -> list[int]:
     band' is a mid-network range, not individual layers."""
     layers = lens.source_layers
     n = len(layers)
-    return layers[n // 3 : (2 * n) // 3] or layers
+    return layers[n // 3:(2 * n) // 3] or layers
 
 
-def exponential_checkpoints(max_tokens: int, *, start: int = 32, growth: float = 2.0) -> list[int]:
+def exponential_checkpoints(max_tokens: int,
+                            *,
+                            start: int = 32,
+                            growth: float = 2.0) -> list[int]:
     """Cumulative new-token counts to check the lens at: ``start``, ``start *
     growth``, ... capped at ``max_tokens`` (always included as the last
     checkpoint)."""
@@ -58,13 +61,16 @@ def _build_prompt(anchor: Anchor, tokenizer: Any) -> str:
         messages.append({"role": "system", "content": anchor.system})
     messages.append({"role": "user", "content": anchor.user})
     if anchor.assistant_prefill:
-        messages.append({"role": "assistant", "content": anchor.assistant_prefill})
-        return tokenizer.apply_chat_template(
-            messages, tokenize=False, continue_final_message=True
-        )
-    return tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
+        messages.append({
+            "role": "assistant",
+            "content": anchor.assistant_prefill
+        })
+        return tokenizer.apply_chat_template(messages,
+                                             tokenize=False,
+                                             continue_final_message=True)
+    return tokenizer.apply_chat_template(messages,
+                                         tokenize=False,
+                                         add_generation_prompt=True)
 
 
 @torch.no_grad()
@@ -90,15 +96,16 @@ def _apply_lens_to_ids(
     return lens_logits
 
 
-def _top_k_tokens(
-    logits: torch.Tensor, tokenizer: Any, *, k: int = 5
-) -> list[list[str]]:
+def _top_k_tokens(logits: torch.Tensor,
+                  tokenizer: Any,
+                  *,
+                  k: int = 5) -> list[list[str]]:
     """Decoded top-``k`` tokens per row of ``logits`` (``[n_positions, vocab]``)."""
     top_idx = logits.topk(k, dim=-1).indices
-    return [
-        [tokenizer.decode([tid], clean_up_tokenization_spaces=False) for tid in row]
-        for row in top_idx.tolist()
-    ]
+    return [[
+        tokenizer.decode([tid], clean_up_tokenization_spaces=False)
+        for tid in row
+    ] for row in top_idx.tolist()]
 
 
 @dataclass
@@ -152,28 +159,26 @@ class MeditationRun:
                     "drift_onset": self.drift_onset,
                 },
                 indent=2,
-            )
-        )
+            ))
 
     @classmethod
-    def load_manifest(cls, run_dir: Path, anchor: Anchor, band: list[int]) -> MeditationRun:
+    def load_manifest(cls, run_dir: Path, anchor: Anchor,
+                      band: list[int]) -> MeditationRun:
         run = cls(run_dir=run_dir, anchor=anchor, band=band)
         manifest_path = run._manifest_path()
         if not manifest_path.exists():
             return run
         manifest = json.loads(manifest_path.read_text())
         for n_new_tokens in manifest["completed"]:
-            state = torch.load(
-                run_dir / f"chunk_{n_new_tokens:07d}.pt", weights_only=False
-            )
+            state = torch.load(run_dir / f"chunk_{n_new_tokens:07d}.pt",
+                               weights_only=False)
             run.checkpoints.append(
                 Checkpoint(
                     n_new_tokens=n_new_tokens,
                     text=state["text"],
                     drift=state["drift"],
                     band_top5=state.get("top5", {}),
-                )
-            )
+                ))
         run.drift_onset = manifest["drift_onset"]
         return run
 
@@ -182,9 +187,8 @@ class MeditationRun:
         if not self.checkpoints:
             return None
         last = self.checkpoints[-1].n_new_tokens
-        state = torch.load(
-            self.run_dir / f"chunk_{last:07d}.pt", weights_only=False
-        )
+        state = torch.load(self.run_dir / f"chunk_{last:07d}.pt",
+                           weights_only=False)
         return state["input_ids"]
 
 
@@ -232,14 +236,11 @@ def run_meditation(
     """
     band = band or default_band(lens)
     run_dir = Path(run_dir)
-    run = (
-        MeditationRun.load_manifest(run_dir, anchor, band)
-        if resume
-        else MeditationRun(run_dir=run_dir, anchor=anchor, band=band)
-    )
-    if run.drift_onset is not None or (
-        run.checkpoints and run.checkpoints[-1].n_new_tokens >= max_tokens
-    ):
+    run = (MeditationRun.load_manifest(run_dir, anchor, band) if resume else
+           MeditationRun(run_dir=run_dir, anchor=anchor, band=band))
+    if run.drift_onset is not None or (run.checkpoints
+                                       and run.checkpoints[-1].n_new_tokens
+                                       >= max_tokens):
         return run
 
     prompt = _build_prompt(anchor, tokenizer)
@@ -250,15 +251,12 @@ def run_meditation(
     prompt_len = prompt_ids.shape[1]
 
     generate_kwargs = {"do_sample": False, **(generate_kwargs or {})}
-    target_ids = (
-        None
-        if anchor.self_referential
-        else token_ids_for_words(anchor.tracked_words, tokenizer)
-    )
+    target_ids = (None if anchor.self_referential else token_ids_for_words(
+        anchor.tracked_words, tokenizer))
 
-    checkpoints = exponential_checkpoints(
-        max_tokens, start=checkpoint_start, growth=checkpoint_growth
-    )
+    checkpoints = exponential_checkpoints(max_tokens,
+                                          start=checkpoint_start,
+                                          growth=checkpoint_growth)
     done = {c.n_new_tokens for c in run.checkpoints}
     for n_new_tokens in checkpoints:
         if n_new_tokens in done:
@@ -266,35 +264,53 @@ def run_meditation(
         have = input_ids.shape[1] - prompt_len
         need = n_new_tokens - have
         if need > 0:
-            input_ids = hf_model.generate(
-                input_ids,
-                max_new_tokens=need,
-                pad_token_id=getattr(tokenizer, "pad_token_id", None)
+            call_kwargs = {
+                "max_new_tokens":
+                need,
+                # Otherwise the model can end the turn (emit EOS) quite early.
+                "min_new_tokens":
+                need,
+                "pad_token_id":
+                getattr(tokenizer, "pad_token_id", None)
                 or tokenizer.eos_token_id,
                 **generate_kwargs,
-            )
+            }
+            input_ids = hf_model.generate(input_ids, **call_kwargs)
 
         positions = list(range(prompt_len, input_ids.shape[1]))
-        lens_logits = _apply_lens_to_ids(
-            lens, model, input_ids, layers=band, positions=positions
-        )
+        lens_logits = _apply_lens_to_ids(lens,
+                                         model,
+                                         input_ids,
+                                         layers=band,
+                                         positions=positions)
         if anchor.self_referential:
             own_ids = input_ids[0, prompt_len:].tolist()
             rank = self_reachability(lens_logits, own_ids, band)
         else:
             rank = band_reachability(lens_logits, target_ids, band)
         drift = score_drift(rank, k=k, window=window, threshold=threshold)
-        top5 = {layer: _top_k_tokens(lens_logits[layer], tokenizer) for layer in band}
+        top5 = {
+            layer: _top_k_tokens(lens_logits[layer], tokenizer)
+            for layer in band
+        }
 
-        text = tokenizer.decode(input_ids[0, prompt_len:], skip_special_tokens=True)
+        text = tokenizer.decode(input_ids[0, prompt_len:],
+                                skip_special_tokens=True)
         run_dir.mkdir(parents=True, exist_ok=True)
         torch.save(
-            {"input_ids": input_ids, "text": text, "drift": drift, "top5": top5},
+            {
+                "input_ids": input_ids,
+                "text": text,
+                "drift": drift,
+                "top5": top5
+            },
             run_dir / f"chunk_{n_new_tokens:07d}.pt",
         )
         run.checkpoints.append(
-            Checkpoint(n_new_tokens=n_new_tokens, text=text, drift=drift, band_top5=top5)
-        )
+            Checkpoint(n_new_tokens=n_new_tokens,
+                       text=text,
+                       drift=drift,
+                       band_top5=top5))
         if drift.is_drifting:
             run.drift_onset = n_new_tokens
         run.save_manifest()
