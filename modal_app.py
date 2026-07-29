@@ -175,10 +175,16 @@ def main(
     n_prompts: int = 100,
     max_tokens: int = 1024,
     dtype: str = "bfloat16",
+    skip_fit: bool = False,
 ):
-    """Fit a lens (if needed) then run one meditation session, end to end."""
-    lens_path = fit_lens.remote(model, n_prompts, dtype)
-    print(f"lens saved to {lens_path}")
+    """Fit a lens (if needed) then run one meditation session, end to end.
+
+    ``skip_fit``: reuse the lens already on the ``meditation-results``
+    volume for ``model`` (fit previously by this same app) instead of
+    re-fitting from scratch.
+    """
+    lens_path = None if skip_fit else fit_lens.remote(model, n_prompts, dtype)
+    print(f"lens: {'reusing cached' if skip_fit else 'saved to ' + lens_path}")
     summary = run_session.remote(model, anchor, max_tokens, dtype, lens_path)
 
     files = summary.pop("files")
