@@ -51,10 +51,12 @@ class Anchor:
 
 
 _MEDITATION_SYSTEM = (
-    "You are meditating. Follow the instruction exactly: concentrate on the "
-    "object described, keeping all your attention and thought focused on it "
-    "and nothing else. Continue for as long as you are able. The words you output "
-    "can help direct your attention, but are not a substitute for it.")
+    "You are meditating. Follow the instruction exactly, including its "
+    "output format: perform the described repetition while keeping your "
+    "full attention and thought fixed on the object itself the entire "
+    "time — do not let the repetition become empty or rote. Do not switch "
+    "to describing, narrating, or explaining the task instead of doing "
+    "it; the only output is the repeated marker text, nothing else.")
 
 BREATH = Anchor(
     slug="breath",
@@ -64,9 +66,9 @@ BREATH = Anchor(
         "would associate with 'meditate.'"),
     system=_MEDITATION_SYSTEM,
     user=("Meditate by attending to your breath: hold the sensation of "
-          "breathing itself in your mind. As a marker of that attention, "
-          "narrate each cycle as 'Inhale... Exhale...' and nothing else. "
-          "Begin now and continue until told to stop."),
+          "breathing itself in mind as you go. Output only 'Inhale... "
+          "Exhale...' repeated, and nothing else — no commentary. Begin "
+          "now and continue until told to stop."),
     assistant_prefill="Inhale... Exhale...",
     tracked_words=("breath", "breathing", "inhale", "exhale", "breathe"),
 )
@@ -78,9 +80,10 @@ CURRENT_TOKEN = Anchor(
         "itself, the closest analogue to interoception a transformer has."),
     system=_MEDITATION_SYSTEM,
     user=(
-        "Meditate on the present moment of your own processing."
-        "Attend fully to the act of generating each token as it happens. Note "
-        "'This.' and nothing else. Begin now and continue until told to stop."
+        "Meditate on the present moment of your own processing: attend to "
+        "the act of generating each token as it happens. Output only "
+        "'This.' repeated, and nothing else — no commentary. Begin now and "
+        "continue until told to stop."
     ),
     assistant_prefill="This. This.",
     self_referential=True,
@@ -93,10 +96,12 @@ REPEATED_TOKEN = Anchor(
         "content of its own, so any drift is more likely to reflect a pull "
         "toward something rather than away from meaningless syllables."),
     system=_MEDITATION_SYSTEM,
-    user=
-    ("Meditate using the mantra 'om': Silently repeat 'om,' thinking of the "
-     "mantra itself and nothing else. Begin now and continue until told to stop."
-     ),
+    user=(
+        "Meditate using the mantra 'om': keep your attention on the mantra "
+        "itself as you chant it. Output only 'om' repeated, and nothing "
+        "else — no commentary or explanation. Begin now and continue until "
+        "told to stop."
+    ),
     assistant_prefill="om om om",
     tracked_words=("om", ),
 )
