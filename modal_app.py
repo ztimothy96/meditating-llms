@@ -3,10 +3,16 @@
 Two persistent Volumes carry state across runs:
 - ``meditation-hf-cache``: HuggingFace model downloads, so re-runs don't
   re-download the model.
-- ``meditation-results``: fitted lenses and run checkpoints, at the same
-  paths ``scripts/fit_lens.py`` / ``scripts/run_meditation.py`` use locally
-  (``/root/results/...``), so results can be pulled down with ``modal volume
-  get`` and inspected the same way as a local run.
+- ``meditation-results``: fitted lenses only, at the same path
+  ``scripts/fit_lens.py`` uses locally (``/root/results/lenses/...``), so a
+  lens is fit once per model and reused across sessions.
+
+Meditation-run checkpoints are *not* kept on a Volume: ``run_session`` writes
+them to ephemeral container storage, then ships the checkpoint files back as
+part of its return value. ``local_entrypoint`` writes them straight to
+``results/runs/...`` in the local repo, the same layout
+``scripts/run_meditation.py`` uses, so no ``modal volume get`` step is
+needed to inspect a run.
 
 Usage:
     modal run modal_app.py --model Qwen/Qwen2.5-1.5B-Instruct \\
@@ -132,7 +138,10 @@ def run_session(
     lens_model = jlens.from_hf(hf_model, tokenizer)
     lens = jlens.JacobianLens.from_pretrained(lens_path or _lens_path(model))
 
-    run_dir = Path(f"/root/results/runs/{model.split('/')[-1]}/{anchor_slug}")
+    # Ephemeral container-local storage, not the results Volume: this run's
+    # checkpoint files are shipped back in the return value instead, so
+    # nothing here needs to persist past this function call.
+    run_dir = Path(f"/root/run_output/{model.split('/')[-1]}/{anchor_slug}")
     run = run_meditation(
         hf_model,
         tokenizer,
@@ -142,7 +151,12 @@ def run_session(
         run_dir=run_dir,
         max_tokens=max_tokens,
     )
-    results_vol.commit()
+
+    files = {
+        str(path.relative_to(run_dir)): path.read_bytes()
+        for path in run_dir.rglob("*")
+        if path.is_file()
+    }
 
     return {
         "anchor": run.anchor.slug,
@@ -150,6 +164,7 @@ def run_session(
         "checkpoints": [c.n_new_tokens for c in run.checkpoints],
         "drift_onset": run.drift_onset,
         "final_text_tail": run.checkpoints[-1].text[-500:] if run.checkpoints else None,
+        "files": files,
     }
 
 
@@ -165,4 +180,12 @@ def main(
     lens_path = fit_lens.remote(model, n_prompts, dtype)
     print(f"lens saved to {lens_path}")
     summary = run_session.remote(model, anchor, max_tokens, dtype, lens_path)
+
+    files = summary.pop("files")
+    run_dir = REPO_ROOT / "results" / "runs" / model.split("/")[-1] / anchor
+    for rel_path, content in files.items():
+        dest = run_dir / rel_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(content)
+    print(f"run checkpoints saved to {run_dir}")
     print(summary)
