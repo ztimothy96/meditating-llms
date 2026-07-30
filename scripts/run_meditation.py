@@ -16,10 +16,10 @@ import jlens
 import torch
 import transformers
 
-from meditation.anchors import ANCHORS, CONTROLS
+from meditation.anchors import ANCHORS, CONTROLS, DIAGNOSTICS
 from meditation.generate import run_meditation
 
-_ALL_ANCHORS = {a.slug: a for a in [*ANCHORS, *CONTROLS]}
+_ALL_ANCHORS = {a.slug: a for a in [*ANCHORS, *CONTROLS, *DIAGNOSTICS]}
 
 
 def main() -> None:

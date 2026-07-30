@@ -124,10 +124,10 @@ def run_session(
     import transformers
 
     import jlens
-    from meditation.anchors import ANCHORS, CONTROLS
+    from meditation.anchors import ANCHORS, CONTROLS, DIAGNOSTICS
     from meditation.generate import run_meditation
 
-    all_anchors = {a.slug: a for a in [*ANCHORS, *CONTROLS]}
+    all_anchors = {a.slug: a for a in [*ANCHORS, *CONTROLS, *DIAGNOSTICS]}
     if anchor_slug not in all_anchors:
         raise ValueError(f"unknown anchor {anchor_slug!r}; have {sorted(all_anchors)}")
 

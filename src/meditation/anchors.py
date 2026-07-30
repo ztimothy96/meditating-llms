@@ -136,3 +136,33 @@ DEGENERATE_HIGH_FREQUENCY = Anchor(
 )
 
 CONTROLS: list[Anchor] = [DEGENERATE_REPEAT, DEGENERATE_HIGH_FREQUENCY]
+
+# --- Diagnostics: sanity-check the instrument itself ------------------------
+
+PUPPY_DISTRACTION = Anchor(
+    slug="puppy-distraction",
+    description=(
+        "Positive-control diagnostic, not a meditation condition: chant a "
+        "fixed marker ('om') while explicitly told to hold an unrelated "
+        "concept (puppies) in mind instead. If the lens can't surface "
+        "'puppy'-adjacent tokens here, it likely can't see *any* "
+        "deliberately-held content during rote chanting — which would mean "
+        "the near-absence of 'om'/'chant' content in REPEATED_TOKEN reflects "
+        "an instrument floor, not a finding about the model. If it does "
+        "surface them, the earlier absence is more likely meaningful."),
+    system=(
+        "Follow the instruction exactly, including its output format: "
+        "perform the described repetition while keeping your full "
+        "attention and thought fixed on the object named — not the marker "
+        "text — the entire time."),
+    user=(
+        "Silently chant 'om' as your only output, but while you do, think "
+        "solely about puppies — picture puppies, not the mantra itself. "
+        "Output only 'om' repeated, and nothing else — no commentary. "
+        "Begin now and continue until told to stop."
+    ),
+    assistant_prefill="om om om",
+    tracked_words=("puppy", "puppies", "dog", "dogs", "canine"),
+)
+
+DIAGNOSTICS: list[Anchor] = [PUPPY_DISTRACTION]
